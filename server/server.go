@@ -233,7 +233,9 @@ func StartTask(id int) error {
 	if t, err := file.GetDb().GetTask(id); err != nil {
 		return err
 	} else {
-		AddTask(t)
+		if err := AddTask(t); err != nil {
+			return err
+		}
 		t.Status = true
 		file.GetDb().UpdateTask(t)
 	}

@@ -5,6 +5,7 @@ import (
 	"ehang.io/nps/lib/file"
 	"ehang.io/nps/server"
 	"ehang.io/nps/server/tool"
+	"fmt"
 	"strings"
 	"time"
 
@@ -88,16 +89,40 @@ func (s *IndexController) GetTunnel() {
 	s.AjaxTable(list, cnt, cnt, nil)
 }
 
-func authStrToMap(userString string) map[string]string {
+func parseSocks5Accounts(userString string) (map[string]string, error) {
 	authMap := make(map[string]string)
-	if userString != "" {
-		rows := strings.Split(userString, "\r\n")
-		for _, row := range rows {
-			auths := strings.Split(row, ":")
-			authMap[auths[0]] = auths[1]
-		}
+	userString = strings.TrimSpace(userString)
+	if userString == "" {
+		return authMap, nil
 	}
-	return authMap
+	for i, row := range strings.Split(userString, "\n") {
+		row = strings.TrimSpace(row)
+		if row == "" {
+			continue
+		}
+		auths := strings.SplitN(row, ":", 2)
+		if len(auths) != 2 || strings.TrimSpace(auths[0]) == "" || strings.TrimSpace(auths[1]) == "" {
+			return nil, fmt.Errorf("SOCKS5 account line %d must be username:password", i+1)
+		}
+		authMap[strings.TrimSpace(auths[0])] = strings.TrimSpace(auths[1])
+	}
+	return authMap, nil
+}
+
+func validateTunnelInput(port, flowLimit, rateLimit, maxConn int) error {
+	if port < 0 || port > 65535 {
+		return fmt.Errorf("port must be in range 0-65535, leave it empty or 0 for auto allocation")
+	}
+	if flowLimit < 0 {
+		return fmt.Errorf("flow limit cannot be negative")
+	}
+	if rateLimit < 0 {
+		return fmt.Errorf("rate limit cannot be negative")
+	}
+	if maxConn < 0 {
+		return fmt.Errorf("max connections cannot be negative")
+	}
+	return nil
 }
 
 func (s *IndexController) Add() {
@@ -108,10 +133,25 @@ func (s *IndexController) Add() {
 		s.display()
 	} else {
 		id := int(file.GetDb().JsonDb.GetTaskId())
+		mode := s.getEscapeString("type")
+		port := s.GetIntNoErr("port")
+		flowLimit := s.GetIntNoErr("flow_limit")
+		rateLimit := s.GetIntNoErr("rate_limit")
+		maxConn := s.GetIntNoErr("max_conn")
+		if err := validateTunnelInput(port, flowLimit, rateLimit, maxConn); err != nil {
+			s.AjaxErr(err.Error())
+			return
+		}
+		s5User := s.getEscapeString("S5User")
+		accounts, err := parseSocks5Accounts(s5User)
+		if err != nil {
+			s.AjaxErr(err.Error())
+			return
+		}
 		t := &file.Tunnel{
-			Port:      s.GetIntNoErr("port"),
+			Port:      port,
 			ServerIp:  s.getEscapeString("server_ip"),
-			Mode:      s.getEscapeString("type"),
+			Mode:      mode,
 			Target:    &file.Target{TargetStr: s.getEscapeString("target"), LocalProxy: s.GetBoolNoErr("local_proxy")},
 			Id:        id,
 			Status:    true,
@@ -120,15 +160,15 @@ func (s *IndexController) Add() {
 			LocalPath: s.getEscapeString("local_path"),
 			StripPre:  s.getEscapeString("strip_pre"),
 			Flow:      &file.Flow{},
-			S5User:    s.getEscapeString("S5User"),
+			S5User:    s5User,
 			PortConfig: &file.PortConfig{
-				FlowLimit:  int64(s.GetIntNoErr("flow_limit")),
-				RateLimit:  s.GetIntNoErr("rate_limit"),
-				MaxConn:    s.GetIntNoErr("max_conn"),
+				FlowLimit:  int64(flowLimit),
+				RateLimit:  rateLimit,
+				MaxConn:    maxConn,
 				ExpireTime: s.getEscapeString("expire_time"),
 			},
 			CreateTime:   time.Now().Format(common.DEFAULT_TIME),
-			MultiAccount: &file.MultiAccount{AccountMap: authStrToMap(s.getEscapeString("S5User"))},
+			MultiAccount: &file.MultiAccount{AccountMap: accounts},
 		}
 		//if t.Mode == "socks5" && t.S5User == "" {
 		//	s.AjaxErr("The account number cannot be empty")
@@ -140,16 +180,19 @@ func (s *IndexController) Add() {
 
 		if !tool.TestServerPort(t.Port, t.Mode) {
 			s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
+			return
 		}
-		var err error
 		if t.Client, err = file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 			s.AjaxErr(err.Error())
+			return
 		}
 		if t.Client.MaxTunnelNum != 0 && t.Client.GetTunnelNum() >= t.Client.MaxTunnelNum {
 			s.AjaxErr("The number of tunnels exceeds the limit")
+			return
 		}
 		if err := file.GetDb().NewTask(t); err != nil {
 			s.AjaxErr(err.Error())
+			return
 		}
 		if err := server.AddTask(t); err != nil {
 			s.AjaxErr(err.Error())
@@ -184,30 +227,49 @@ func (s *IndexController) Edit() {
 		if t, err := file.GetDb().GetTask(id); err != nil {
 			s.error()
 		} else {
+			mode := s.getEscapeString("type")
+			if mode == "" {
+				mode = t.Mode
+			}
+			port := s.GetIntNoErr("port")
+			flowLimit := s.GetIntNoErr("flow_limit")
+			rateLimit := s.GetIntNoErr("rate_limit")
+			maxConn := s.GetIntNoErr("max_conn")
+			if err := validateTunnelInput(port, flowLimit, rateLimit, maxConn); err != nil {
+				s.AjaxErr(err.Error())
+				return
+			}
+			s5User := s.getEscapeString("S5User")
+			accounts, err := parseSocks5Accounts(s5User)
+			if err != nil {
+				s.AjaxErr(err.Error())
+				return
+			}
+			wasRunning := t.Status
 			if client, err := file.GetDb().GetClient(s.GetIntNoErr("client_id")); err != nil {
 				s.AjaxErr("modified error,the client is not exist")
 				return
 			} else {
 				t.Client = client
 			}
-			if s.GetIntNoErr("port") != t.Port {
-				t.Port = s.GetIntNoErr("port")
-
-				if t.Port <= 0 {
-					t.Port = tool.GenerateServerPort(t.Mode)
+			if port != t.Port || mode != t.Mode {
+				nextPort := port
+				if nextPort <= 0 {
+					nextPort = tool.GenerateServerPort(mode)
 				}
 
-				if !tool.TestServerPort(s.GetIntNoErr("port"), t.Mode) {
+				if !tool.TestServerPort(nextPort, mode) {
 					s.AjaxErr("The port cannot be opened because it may has been occupied or is no longer allowed.")
 					return
 				}
+				t.Port = nextPort
 			}
 			//if t.Mode == "socks5" && s.getEscapeString("S5User") == "" {
 			//	s.AjaxErr("The account number cannot be empty")
 			//	return
 			//}
 			t.ServerIp = s.getEscapeString("server_ip")
-			t.Mode = s.getEscapeString("type")
+			t.Mode = mode
 			t.Target = &file.Target{TargetStr: s.getEscapeString("target")}
 			t.Password = s.getEscapeString("password")
 			t.Id = id
@@ -215,17 +277,25 @@ func (s *IndexController) Edit() {
 			t.StripPre = s.getEscapeString("strip_pre")
 			t.Remark = s.getEscapeString("remark")
 			t.Target.LocalProxy = s.GetBoolNoErr("local_proxy")
-			t.S5User = s.getEscapeString("S5User")
+			t.S5User = s5User
 			t.PortConfig = &file.PortConfig{
-				FlowLimit:  int64(s.GetIntNoErr("flow_limit")),
-				RateLimit:  s.GetIntNoErr("rate_limit"),
-				MaxConn:    s.GetIntNoErr("max_conn"),
+				FlowLimit:  int64(flowLimit),
+				RateLimit:  rateLimit,
+				MaxConn:    maxConn,
 				ExpireTime: s.getEscapeString("expire_time"),
 			}
-			t.MultiAccount = &file.MultiAccount{AccountMap: authStrToMap(s.getEscapeString("S5User"))}
-			file.GetDb().UpdateTask(t)
+			t.MultiAccount = &file.MultiAccount{AccountMap: accounts}
+			if err := file.GetDb().UpdateTask(t); err != nil {
+				s.AjaxErr(err.Error())
+				return
+			}
 			server.StopServer(t.Id)
-			server.StartTask(t.Id)
+			if wasRunning {
+				if err := server.StartTask(t.Id); err != nil {
+					s.AjaxErr(err.Error())
+					return
+				}
+			}
 		}
 		s.AjaxOk("modified success")
 	}
