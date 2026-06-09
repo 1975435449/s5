@@ -3,10 +3,12 @@
 /npc
 /nps.exe
 /npc.exe
+/nps-local.exe
 *.log
 proxy*.log
 test_503*.py
 项目维护文档.md
 build/
 dist/
+.dev/
 专业测试.py
