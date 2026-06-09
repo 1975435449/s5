@@ -25,8 +25,9 @@ import (
 )
 
 var (
-	Bridge  *bridge.Bridge
-	RunList sync.Map //map[int]interface{}
+	Bridge          *bridge.Bridge
+	RunList         sync.Map //map[int]interface{}
+	flowSessionOnce sync.Once
 )
 
 func init() {
@@ -123,6 +124,14 @@ func dealClientFlow() {
 	}
 }
 
+func startFlowSession() {
+	if minute, err := beego.AppConfig.Int("flow_store_interval"); err == nil && minute > 0 {
+		flowSessionOnce.Do(func() {
+			go flowSession(time.Minute * time.Duration(minute))
+		})
+	}
+}
+
 // new a server by mode name
 func NewMode(Bridge *bridge.Bridge, c *file.Tunnel) proxy.Service {
 	var service proxy.Service
@@ -203,25 +212,18 @@ func AddTask(t *file.Tunnel) error {
 		logs.Error("taskId %d start error port %d open failed", t.Id, t.Port)
 		return errors.New("the port open error")
 	}
-	if minute, err := beego.AppConfig.Int("flow_store_interval"); err == nil && minute > 0 {
-		go flowSession(time.Minute * time.Duration(minute))
-	}
 	if svr := NewMode(Bridge, t); svr != nil {
 		logs.Info("tunnel task %s start mode：%s port %d", t.Remark, t.Mode, t.Port)
-		//RunList[t.Id] = svr
-		RunList.Store(t.Id, svr)
-		go func() {
-			if err := svr.Start(); err != nil {
-				clientId := 0
-				if t.Client != nil {
-					clientId = t.Client.Id
-				}
-				logs.Error("clientId %d taskId %d start error %s", clientId, t.Id, err)
-				//delete(RunList, t.Id)
-				RunList.Delete(t.Id)
-				return
+		if err := svr.Start(); err != nil {
+			clientId := 0
+			if t.Client != nil {
+				clientId = t.Client.Id
 			}
-		}()
+			logs.Error("clientId %d taskId %d start error %s", clientId, t.Id, err)
+			return err
+		}
+		startFlowSession()
+		RunList.Store(t.Id, svr)
 	} else {
 		return errors.New("the mode is not correct")
 	}

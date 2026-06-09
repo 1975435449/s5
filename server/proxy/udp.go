@@ -37,15 +37,24 @@ func (s *UdpModeServer) Start() error {
 	if err != nil {
 		return err
 	}
+	go s.acceptLoop()
+	return nil
+}
+
+func (s *UdpModeServer) acceptLoop() {
 	for {
 		buf := common.BufPoolUdp.Get().([]byte)
 		n, addr, err := s.listener.ReadFromUDP(buf)
 		if err != nil {
+			common.BufPoolUdp.Put(buf)
 			if strings.Contains(err.Error(), "use of closed network connection") {
 				break
 			}
 			continue
 		}
+		data := make([]byte, n)
+		copy(data, buf[:n])
+		common.BufPoolUdp.Put(buf)
 
 		// 判断访问地址是否在全局黑名单内
 		if IsGlobalBlackIp(addr.String()) {
@@ -58,9 +67,8 @@ func (s *UdpModeServer) Start() error {
 		}
 
 		logs.Trace("New udp connection,client %d,remote address %s", s.task.Client.Id, addr)
-		go s.process(addr, buf[:n])
+		go s.process(addr, data)
 	}
-	return nil
 }
 
 func (s *UdpModeServer) process(addr *net.UDPAddr, data []byte) {

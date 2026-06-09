@@ -46,6 +46,8 @@ const (
 	authFailure     = uint8(1)
 )
 
+var errAddrTypeNotSupported = errors.New("addr type not supported")
+
 type Sock5ModeServer struct {
 	BaseServer
 	listener net.Listener
@@ -105,33 +107,64 @@ func (s *Sock5ModeServer) sendReply(c net.Conn, rep uint8) {
 	c.Write(reply)
 }
 
-// do conn
-func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
+func readSocks5Address(c net.Conn) (string, uint16, error) {
 	addrType := make([]byte, 1)
-	c.Read(addrType)
+	if _, err := io.ReadFull(c, addrType); err != nil {
+		return "", 0, err
+	}
+
 	var host string
 	switch addrType[0] {
 	case ipV4:
 		ipv4 := make(net.IP, net.IPv4len)
-		c.Read(ipv4)
+		if _, err := io.ReadFull(c, ipv4); err != nil {
+			return "", 0, err
+		}
 		host = ipv4.String()
 	case ipV6:
 		ipv6 := make(net.IP, net.IPv6len)
-		c.Read(ipv6)
+		if _, err := io.ReadFull(c, ipv6); err != nil {
+			return "", 0, err
+		}
 		host = ipv6.String()
 	case domainName:
-		var domainLen uint8
-		binary.Read(c, binary.BigEndian, &domainLen)
-		domain := make([]byte, domainLen)
-		c.Read(domain)
+		var domainLen [1]byte
+		if _, err := io.ReadFull(c, domainLen[:]); err != nil {
+			return "", 0, err
+		}
+		domain := make([]byte, int(domainLen[0]))
+		if _, err := io.ReadFull(c, domain); err != nil {
+			return "", 0, err
+		}
 		host = string(domain)
 	default:
+		return "", 0, errAddrTypeNotSupported
+	}
+
+	var portBytes [2]byte
+	if _, err := io.ReadFull(c, portBytes[:]); err != nil {
+		return "", 0, err
+	}
+	return host, binary.BigEndian.Uint16(portBytes[:]), nil
+}
+
+// do conn
+func (s *Sock5ModeServer) doConnect(c net.Conn, command uint8) {
+	host, port, err := readSocks5Address(c)
+	if err != nil {
+		if errors.Is(err, errAddrTypeNotSupported) {
+			s.sendReply(c, addrTypeNotSupported)
+			return
+		}
+		logs.Warn("read socks5 address error", err)
+		s.sendReply(c, serverFailure)
+		return
+	}
+	if host == "" {
 		s.sendReply(c, addrTypeNotSupported)
 		return
 	}
 
-	var port uint16
-	binary.Read(c, binary.BigEndian, &port)
 	// connect to host
 	addr := net.JoinHostPort(host, strconv.Itoa(int(port)))
 	var ltype string
@@ -175,31 +208,16 @@ func (s *Sock5ModeServer) sendUdpReply(writeConn net.Conn, c net.Conn, rep uint8
 
 func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 	defer c.Close()
-	addrType := make([]byte, 1)
-	c.Read(addrType)
-	var host string
-	switch addrType[0] {
-	case ipV4:
-		ipv4 := make(net.IP, net.IPv4len)
-		c.Read(ipv4)
-		host = ipv4.String()
-	case ipV6:
-		ipv6 := make(net.IP, net.IPv6len)
-		c.Read(ipv6)
-		host = ipv6.String()
-	case domainName:
-		var domainLen uint8
-		binary.Read(c, binary.BigEndian, &domainLen)
-		domain := make([]byte, domainLen)
-		c.Read(domain)
-		host = string(domain)
-	default:
-		s.sendReply(c, addrTypeNotSupported)
+	host, port, err := readSocks5Address(c)
+	if err != nil {
+		if errors.Is(err, errAddrTypeNotSupported) {
+			s.sendReply(c, addrTypeNotSupported)
+			return
+		}
+		logs.Warn("read socks5 udp address error", err)
+		s.sendReply(c, serverFailure)
 		return
 	}
-	//读取端口
-	var port uint16
-	binary.Read(c, binary.BigEndian, &port)
 	logs.Warn("udp associate target %s:%d", host, port)
 	replyAddr, err := net.ResolveUDPAddr("udp", s.task.ServerIp+":0")
 	if err != nil {
@@ -256,8 +274,7 @@ func (s *Sock5ModeServer) handleUDP(c net.Conn) {
 				logs.Warn("read len bytes error", err.Error())
 				return
 			}
-			binary.Read(target, binary.LittleEndian, b[:l])
-			if err != nil {
+			if _, err := io.ReadFull(target, b[:int(l)]); err != nil {
 				logs.Warn("read data form client error", err.Error())
 				return
 			}
@@ -297,7 +314,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 	nMethods := buf[1]
 
 	methods := make([]byte, nMethods)
-	if len, err := c.Read(methods); len != int(nMethods) || err != nil {
+	if _, err := io.ReadFull(c, methods); err != nil {
 		logs.Warn("wrong method")
 		c.Close()
 		return
@@ -320,7 +337,7 @@ func (s *Sock5ModeServer) handleConn(c net.Conn) {
 // socks5 auth
 func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	header := []byte{0, 0}
-	if _, err := io.ReadAtLeast(c, header, 2); err != nil {
+	if _, err := io.ReadFull(c, header); err != nil {
 		return err
 	}
 	if header[0] != userAuthVersion {
@@ -328,15 +345,15 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	}
 	userLen := int(header[1])
 	user := make([]byte, userLen)
-	if _, err := io.ReadAtLeast(c, user, userLen); err != nil {
+	if _, err := io.ReadFull(c, user); err != nil {
 		return err
 	}
-	if _, err := c.Read(header[:1]); err != nil {
+	if _, err := io.ReadFull(c, header[:1]); err != nil {
 		return errors.New("密码长度获取错误")
 	}
 	passLen := int(header[0])
 	pass := make([]byte, passLen)
-	if _, err := io.ReadAtLeast(c, pass, passLen); err != nil {
+	if _, err := io.ReadFull(c, pass); err != nil {
 		return err
 	}
 
@@ -372,7 +389,12 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 
 // start
 func (s *Sock5ModeServer) Start() error {
-	return conn.NewTcpListenerAndProcess(s.task.ServerIp+":"+strconv.Itoa(s.task.Port), func(c net.Conn) {
+	var err error
+	s.listener, err = net.Listen("tcp", s.task.ServerIp+":"+strconv.Itoa(s.task.Port))
+	if err != nil {
+		return err
+	}
+	go conn.Accept(s.listener, func(c net.Conn) {
 		if err := s.CheckFlowAndConnNumByPort(s.task.PortConfig, s.task.Client); err != nil {
 			logs.Warn("client id %d, task id %d, error %s, when socks5 connection", s.task.Client.Id, s.task.Id, err.Error())
 			c.Close()
@@ -381,7 +403,8 @@ func (s *Sock5ModeServer) Start() error {
 		logs.Trace("New socks5 connection,client %d,remote address %s", s.task.Client.Id, c.RemoteAddr())
 		s.handleConn(c)
 		s.task.PortConfig.AddConn()
-	}, &s.listener)
+	})
+	return nil
 }
 
 // new

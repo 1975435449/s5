@@ -72,6 +72,22 @@ func NewTunnel(tunnelPort int, tunnelType string, ipVerify bool, runList sync.Ma
 	}
 }
 
+func tunnelBelongsToClient(t *file.Tunnel, clientId int) bool {
+	return t != nil && t.Client != nil && t.Client.Id == clientId
+}
+
+func hostBelongsToClient(h *file.Host, clientId int) bool {
+	return h != nil && h.Client != nil && h.Client.Id == clientId
+}
+
+func tunnelTargetContains(t *file.Tunnel, clientId int, info string) bool {
+	return tunnelBelongsToClient(t, clientId) && t.Target != nil && strings.Contains(t.Target.TargetStr, info)
+}
+
+func hostTargetContains(h *file.Host, clientId int, info string) bool {
+	return hostBelongsToClient(h, clientId) && h.Target != nil && strings.Contains(h.Target.TargetStr, info)
+}
+
 func (s *Bridge) StartTunnel() error {
 	go s.ping()
 	if s.tunnelType == "kcp" {
@@ -123,7 +139,7 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 		} else if !status { //the status is true , return target to the targetArr
 			file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 				v := value.(*file.Tunnel)
-				if v.Client.Id == id && v.Mode == "tcp" && strings.Contains(v.Target.TargetStr, info) {
+				if v.Mode == "tcp" && tunnelTargetContains(v, id, info) {
 					v.Lock()
 					if v.Target.TargetArr == nil || (len(v.Target.TargetArr) == 0 && len(v.HealthRemoveArr) == 0) {
 						v.Target.TargetArr = common.TrimArr(strings.Split(v.Target.TargetStr, "\n"))
@@ -139,7 +155,7 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 			})
 			file.GetDb().JsonDb.Hosts.Range(func(key, value interface{}) bool {
 				v := value.(*file.Host)
-				if v.Client.Id == id && strings.Contains(v.Target.TargetStr, info) {
+				if hostTargetContains(v, id, info) {
 					v.Lock()
 					if v.Target.TargetArr == nil || (len(v.Target.TargetArr) == 0 && len(v.HealthRemoveArr) == 0) {
 						v.Target.TargetArr = common.TrimArr(strings.Split(v.Target.TargetStr, "\n"))
@@ -156,7 +172,7 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 		} else { //the status is false,remove target from the targetArr
 			file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 				v := value.(*file.Tunnel)
-				if v.Client.Id == id && v.Mode == "tcp" && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.Target.TargetArr, info) {
+				if tunnelBelongsToClient(v, id) && v.Target != nil && v.Mode == "tcp" && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.Target.TargetArr, info) {
 					v.Lock()
 					v.Target.TargetArr = append(v.Target.TargetArr, info)
 					v.HealthRemoveArr = common.RemoveArrVal(v.HealthRemoveArr, info)
@@ -167,7 +183,7 @@ func (s *Bridge) GetHealthFromClient(id int, c *conn.Conn) {
 
 			file.GetDb().JsonDb.Hosts.Range(func(key, value interface{}) bool {
 				v := value.(*file.Host)
-				if v.Client.Id == id && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.Target.TargetArr, info) {
+				if hostBelongsToClient(v, id) && v.Target != nil && common.IsArrContains(v.HealthRemoveArr, info) && !common.IsArrContains(v.Target.TargetArr, info) {
 					v.Lock()
 					v.Target.TargetArr = append(v.Target.TargetArr, info)
 					v.HealthRemoveArr = common.RemoveArrVal(v.HealthRemoveArr, info)
@@ -307,6 +323,8 @@ func (s *Bridge) typeDeal(typeVal string, c *conn.Conn, id int, vs string) {
 			logs.Error("p2p error,", err.Error())
 		} else if t := file.GetDb().GetTaskByMd5Password(string(b)); t == nil {
 			logs.Error("p2p error, failed to match the key successfully")
+		} else if t.Client == nil {
+			logs.Error("p2p error, task client is nil")
 		} else {
 			if v, ok := s.Client.Load(t.Client.Id); !ok {
 				return
@@ -434,7 +452,7 @@ loop:
 				}
 				file.GetDb().JsonDb.Hosts.Range(func(key, value interface{}) bool {
 					v := value.(*file.Host)
-					if v.Client.Id == id {
+					if hostBelongsToClient(v, id) {
 						str += v.Remark + common.CONN_DATA_SEQ
 					}
 					return true
@@ -442,7 +460,7 @@ loop:
 				file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 					v := value.(*file.Tunnel)
 					//if _, ok := s.runList[v.Id]; ok && v.Client.Id == id {
-					if _, ok := s.runList.Load(v.Id); ok && v.Client.Id == id {
+					if _, ok := s.runList.Load(v.Id); ok && tunnelBelongsToClient(v, id) {
 						str += v.Remark + common.CONN_DATA_SEQ
 					}
 					return true
