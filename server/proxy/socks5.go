@@ -341,7 +341,7 @@ func (s *Sock5ModeServer) Auth(c net.Conn) error {
 	}
 
 	var U, P string
-	if s.task.MultiAccount != nil {
+	if s.task.MultiAccount != nil && len(s.task.MultiAccount.AccountMap) > 0 {
 		// enable multi user auth
 		U = string(user)
 		if len(U) == 0 {
