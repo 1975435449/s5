@@ -51,8 +51,9 @@ func (s *JsonDb) LoadTaskFromJsonFile() {
 			logs.Warn("skip task id %d because client is nil", post.Id)
 			return
 		}
-		if post.Client, err = s.GetClient(post.Client.Id); err != nil {
-			logs.Warn("skip task id %d because client id %d was not found", post.Id, post.Client.Id)
+		clientId := post.Client.Id
+		if post.Client, err = s.GetClient(clientId); err != nil {
+			logs.Warn("skip task id %d because client id %d was not found", post.Id, clientId)
 			return
 		}
 		s.Tasks.Store(post.Id, post)
@@ -93,8 +94,9 @@ func (s *JsonDb) LoadHostFromJsonFile() {
 			logs.Warn("skip host id %d because client is nil", post.Id)
 			return
 		}
-		if post.Client, err = s.GetClient(post.Client.Id); err != nil {
-			logs.Warn("skip host id %d because client id %d was not found", post.Id, post.Client.Id)
+		clientId := post.Client.Id
+		if post.Client, err = s.GetClient(clientId); err != nil {
+			logs.Warn("skip host id %d because client id %d was not found", post.Id, clientId)
 			return
 		}
 		s.Hosts.Store(post.Id, post)
