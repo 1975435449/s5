@@ -173,7 +173,11 @@ func StopServer(id int) error {
 			return err
 		} else {
 			t.Status = false
-			logs.Info("close port %d,remark %s,client id %d,task id %d", t.Port, t.Remark, t.Client.Id, t.Id)
+			clientId := 0
+			if t.Client != nil {
+				clientId = t.Client.Id
+			}
+			logs.Info("close port %d,remark %s,client id %d,task id %d", t.Port, t.Remark, clientId, t.Id)
 			file.GetDb().UpdateTask(t)
 		}
 		//delete(RunList, id)
@@ -191,6 +195,10 @@ func AddTask(t *file.Tunnel) error {
 		RunList.Store(t.Id, nil)
 		return nil
 	}
+	if t.Mode != "httpHostServer" && t.Client == nil {
+		logs.Error("taskId %d start error client is nil", t.Id)
+		return errors.New("the client is not found")
+	}
 	if b := tool.TestServerPort(t.Port, t.Mode); !b && t.Mode != "httpHostServer" {
 		logs.Error("taskId %d start error port %d open failed", t.Id, t.Port)
 		return errors.New("the port open error")
@@ -204,7 +212,11 @@ func AddTask(t *file.Tunnel) error {
 		RunList.Store(t.Id, svr)
 		go func() {
 			if err := svr.Start(); err != nil {
-				logs.Error("clientId %d taskId %d start error %s", t.Client.Id, t.Id, err)
+				clientId := 0
+				if t.Client != nil {
+					clientId = t.Client.Id
+				}
+				logs.Error("clientId %d taskId %d start error %s", clientId, t.Id, err)
 				//delete(RunList, t.Id)
 				RunList.Delete(t.Id)
 				return
@@ -250,6 +262,10 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string, s
 	for _, key := range keys {
 		if value, ok := file.GetDb().JsonDb.Tasks.Load(key); ok {
 			v := value.(*file.Tunnel)
+			if v.Client == nil {
+				logs.Warn("skip task id %d because client is nil", v.Id)
+				continue
+			}
 			if (typeVal != "" && v.Mode != typeVal || (clientId != 0 && v.Client.Id != clientId)) || (typeVal == "" && clientId != v.Client.Id) {
 				continue
 			}
@@ -293,6 +309,10 @@ func GetTunnel(start, length int, typeVal string, clientId int, search string, s
 	for _, key := range all_list {
 		if value, ok := file.GetDb().JsonDb.Tasks.Load(key.Id); ok {
 			v := value.(*file.Tunnel)
+			if v.Client == nil {
+				logs.Warn("skip task id %d because client is nil", v.Id)
+				continue
+			}
 			if (typeVal != "" && v.Mode != typeVal || (clientId != 0 && v.Client.Id != clientId)) || (typeVal == "" && clientId != v.Client.Id) {
 				continue
 			}
@@ -377,6 +397,9 @@ func DelTunnelAndHostByClientId(clientId int, justDelNoStore bool) {
 	var ids []int
 	file.GetDb().JsonDb.Tasks.Range(func(key, value interface{}) bool {
 		v := value.(*file.Tunnel)
+		if v.Client == nil {
+			return true
+		}
 		if justDelNoStore && !v.NoStore {
 			return true
 		}
@@ -391,6 +414,9 @@ func DelTunnelAndHostByClientId(clientId int, justDelNoStore bool) {
 	ids = ids[:0]
 	file.GetDb().JsonDb.Hosts.Range(func(key, value interface{}) bool {
 		v := value.(*file.Host)
+		if v.Client == nil {
+			return true
+		}
 		if justDelNoStore && !v.NoStore {
 			return true
 		}

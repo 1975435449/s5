@@ -155,6 +155,45 @@ func (s *DbUtils) DelHost(id int) error {
 	return nil
 }
 
+func (s *DbUtils) DelTunnelsAndHostsByClientId(clientId int, justDelNoStore bool) (taskCount, hostCount int) {
+	s.JsonDb.Tasks.Range(func(key, value interface{}) bool {
+		v, ok := value.(*Tunnel)
+		if !ok || v == nil || v.Client == nil {
+			return true
+		}
+		if justDelNoStore && !v.NoStore {
+			return true
+		}
+		if v.Client.Id == clientId {
+			s.JsonDb.Tasks.Delete(key)
+			taskCount++
+		}
+		return true
+	})
+	if taskCount > 0 {
+		s.JsonDb.StoreTasksToJsonFile()
+	}
+
+	s.JsonDb.Hosts.Range(func(key, value interface{}) bool {
+		v, ok := value.(*Host)
+		if !ok || v == nil || v.Client == nil {
+			return true
+		}
+		if justDelNoStore && !v.NoStore {
+			return true
+		}
+		if v.Client.Id == clientId {
+			s.JsonDb.Hosts.Delete(key)
+			hostCount++
+		}
+		return true
+	})
+	if hostCount > 0 {
+		s.JsonDb.StoreHostToJsonFile()
+	}
+	return
+}
+
 func (s *DbUtils) IsHostExist(h *Host) bool {
 	var exist bool
 	s.JsonDb.Hosts.Range(func(key, value interface{}) bool {
@@ -205,6 +244,7 @@ func (s *DbUtils) GetHost(start, length int, id int, search string) ([]*Host, in
 }
 
 func (s *DbUtils) DelClient(id int) error {
+	s.DelTunnelsAndHostsByClientId(id, false)
 	s.JsonDb.Clients.Delete(id)
 	s.JsonDb.StoreClientsToJsonFile()
 	return nil

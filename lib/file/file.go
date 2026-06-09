@@ -47,7 +47,12 @@ func (s *JsonDb) LoadTaskFromJsonFile() {
 		if json.Unmarshal([]byte(v), &post) != nil {
 			return
 		}
+		if post.Client == nil {
+			logs.Warn("skip task id %d because client is nil", post.Id)
+			return
+		}
 		if post.Client, err = s.GetClient(post.Client.Id); err != nil {
+			logs.Warn("skip task id %d because client id %d was not found", post.Id, post.Client.Id)
 			return
 		}
 		s.Tasks.Store(post.Id, post)
@@ -84,7 +89,12 @@ func (s *JsonDb) LoadHostFromJsonFile() {
 		if json.Unmarshal([]byte(v), &post) != nil {
 			return
 		}
+		if post.Client == nil {
+			logs.Warn("skip host id %d because client is nil", post.Id)
+			return
+		}
 		if post.Client, err = s.GetClient(post.Client.Id); err != nil {
+			logs.Warn("skip host id %d because client id %d was not found", post.Id, post.Client.Id)
 			return
 		}
 		s.Hosts.Store(post.Id, post)

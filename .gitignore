@@ -1,3 +1,7 @@
 .idea
 nps
 npc
+*.log
+proxy*.log
+test_503*.py
+专业测试.py

@@ -190,10 +190,10 @@ func (s *ClientController) ChangeStatus() {
 // 删除客户端
 func (s *ClientController) Del() {
 	id := s.GetIntNoErr("id")
+	server.DelTunnelAndHostByClientId(id, false)
 	if err := file.GetDb().DelClient(id); err != nil {
 		s.AjaxErr("delete error")
 	}
-	server.DelTunnelAndHostByClientId(id, false)
 	server.DelClientConnect(id)
 	s.AjaxOk("delete success")
 }
