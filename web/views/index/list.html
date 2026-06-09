@@ -1,11 +1,30 @@
 <style>
     .s5-helper {
         margin: 8px 0 12px;
-        padding: 10px 12px;
+        padding: 12px 14px;
         border-left: 3px solid #1ab394;
         background: #f7faf9;
         color: #676a6c;
         font-size: 13px;
+    }
+
+    .s5-helper-title {
+        color: #1c2b36;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .s5-helper-actions {
+        margin-top: 10px;
+    }
+
+    .s5-helper-actions .btn {
+        margin-right: 6px;
+    }
+
+    .s5-helper-tip {
+        display: inline-block;
+        margin: 4px 12px 4px 0;
     }
 
     .s5-helper code,
@@ -47,7 +66,18 @@
                         </div>
                         {{if eq .type "socks5"}}
                         <div class="s5-helper">
-                            Empty port or 0 will auto allocate an available port. SOCKS5 account format: <code>username:password</code>, one per line.
+                            <div class="s5-helper-title">SOCKS5 操作台</div>
+                            <span class="s5-helper-tip"><i class="fa fa-check-circle"></i> 端口留空或填 0 会自动分配</span>
+                            <span class="s5-helper-tip"><i class="fa fa-lock"></i> 账号格式：<code>用户名:密码</code>，一行一个</span>
+                            <span class="s5-helper-tip"><i class="fa fa-copy"></i> 每行代理支持一键复制</span>
+                            <div class="s5-helper-actions">
+                                <a href="{{.web_base_url}}/index/add?type=socks5&client_id={{.client_id}}" class="btn btn-primary btn-sm">
+                                    <i class="fa fa-plus"></i> 新增 SOCKS5
+                                </a>
+                                <button class="btn btn-default btn-sm" type="button" onclick="$('#table').bootstrapTable('refresh')">
+                                    <i class="fa fa-refresh"></i> 刷新列表
+                                </button>
+                            </div>
                         </div>
                         {{end}}
                         <table id="taskList_table" class="table-striped table-hover" data-mobile-responsive="true"></table>
@@ -74,7 +104,7 @@
 
     function notifyCopySuccess() {
         if (window.toastr) {
-            toastr.success('Copied');
+            toastr.success('已复制');
         }
     }
 
@@ -143,7 +173,7 @@
         var row = $('#table').bootstrapTable('getData')[index];
         if (!row) return;
         var label = row.Remark ? ' "' + row.Remark + '"' : ' #' + row.Id;
-        if (confirm('Delete tunnel' + label + '?')) {
+        if (confirm('确认删除代理' + label + '？删除后端口会停止监听。')) {
             submitform('delete', '{{.web_base_url}}/index/del', {'id': row.Id});
         }
     }
@@ -187,11 +217,11 @@
                     + '<b langtag="word-inletflow"></b>: ' + changeunit(flow.InletFlow) + '&emsp;'
             if (row.Mode == "socks5") {
                 return tmp + '<div class="task-copy-line">'
-                        + '<b>Endpoint</b>: <code>' + htmlEncode(buildSocks5Endpoint(row)) + '</code> '
+                        + '<b>代理地址</b>: <code>' + htmlEncode(buildSocks5Endpoint(row)) + '</code> '
                         + '<button class="btn btn-info btn-xs" type="button" onclick="copySocks5Endpoint(' + index + ')"><i class="fa fa-copy"></i></button>'
                         + '</div>'
                         + '<div class="task-copy-line">'
-                        + '<b>Proxy URL</b>: <code>' + htmlEncode(buildSocks5Proxy(row)) + '</code> '
+                        + '<b>代理链接</b>: <code>' + htmlEncode(buildSocks5Proxy(row)) + '</code> '
                         + '<button class="btn btn-info btn-xs" type="button" onclick="copySocks5Proxy(' + index + ')"><i class="fa fa-copy"></i></button>'
                         + '</div>'
             }
@@ -228,7 +258,7 @@
                 sortable: true, //启用排序
                 formatter: function (value, row, index) {
                     if (!row.Client) {
-                        return '<span class="text-danger">missing client</span>'
+                        return '<span class="text-danger">客户端已丢失</span>'
                     }
                     return htmlEncode(row.Client.Id + '-' + row.Client.Remark)
                 }
@@ -317,7 +347,7 @@
                 formatter: function (value, row, index) {
                     btn_group = '<div class="btn-group">'
                     if (row.Mode == "socks5") {
-                        btn_group += "<a title=\"Copy proxy\" onclick=\"copySocks5Proxy(" + index
+                        btn_group += "<a title=\"复制代理链接\" onclick=\"copySocks5Proxy(" + index
                         btn_group += ")\" class=\"btn btn-outline btn-info\"><i class=\"fa fa-copy\"></i></a>"
                     }
                     if (row.Status) {

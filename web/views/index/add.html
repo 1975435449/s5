@@ -82,7 +82,7 @@
                         <div class="col-sm-10">
                             <input class="form-control" type="text" name="port" placeholder=""
                                    langtag="info-suchasport">
-                            <span class="help-block m-b-none">Leave empty or 0 to auto allocate.</span>
+                            <span class="help-block m-b-none">留空或填 0 会自动分配可用端口。</span>
                         </div>
                     </div>
 
@@ -95,17 +95,17 @@
                             <div class="s5-account-tools">
                                 <div class="row">
                                     <div class="col-sm-4">
-                                        <input class="form-control input-sm" id="s5_account_prefix" type="text" value="s5" title="Account prefix">
+                                        <input class="form-control input-sm" id="s5_account_prefix" type="text" value="s5" placeholder="账号前缀" title="账号前缀">
                                     </div>
                                     <div class="col-sm-2">
-                                        <input class="form-control input-sm" id="s5_account_count" type="number" min="1" max="100" value="1" title="Account count">
+                                        <input class="form-control input-sm" id="s5_account_count" type="number" min="1" max="100" value="1" placeholder="数量" title="生成数量">
                                     </div>
                                     <div class="col-sm-6">
                                         <button class="btn btn-info btn-sm" type="button" onclick="generateSocks5Accounts()">
-                                            <i class="fa fa-magic"></i> Generate
+                                            <i class="fa fa-magic"></i> 生成账号
                                         </button>
                                         <button class="btn btn-default btn-sm" type="button" onclick="clearSocks5Accounts()">
-                                            <i class="fa fa-eraser"></i> Clear
+                                            <i class="fa fa-eraser"></i> 清空账号
                                         </button>
                                     </div>
                                 </div>
@@ -206,11 +206,11 @@
         var value = $.trim($("[name='" + name + "']").val() || "");
         if (value === "") return true;
         if (!/^\d+$/.test(value)) {
-            showTunnelError(label + " must be a non-negative integer.");
+            showTunnelError(label + "必须是非负整数。");
             return false;
         }
         if (max != null && parseInt(value, 10) > max) {
-            showTunnelError(label + " is too large.");
+            showTunnelError(label + "超出允许范围。");
             return false;
         }
         return true;
@@ -224,7 +224,7 @@
             if (!line) continue;
             var splitAt = line.indexOf(":");
             if (splitAt <= 0 || splitAt === line.length - 1) {
-                showTunnelError("SOCKS5 account line " + (i + 1) + " must be username:password.");
+                showTunnelError("SOCKS5 账号第 " + (i + 1) + " 行必须是 用户名:密码。");
                 return false;
             }
         }
@@ -232,9 +232,9 @@
     }
 
     function validateTunnelForm() {
-        return validateNonNegativeInteger("port", "Port", 65535)
-            && validateNonNegativeInteger("flow_limit", "Flow limit")
-            && validateNonNegativeInteger("max_conn", "Max connections")
+        return validateNonNegativeInteger("port", "端口", 65535)
+            && validateNonNegativeInteger("flow_limit", "流量限制")
+            && validateNonNegativeInteger("max_conn", "最大连接数")
             && validateSocks5Accounts();
     }
 
@@ -277,7 +277,7 @@
     }
 
     function clearSocks5Accounts() {
-        if (confirm("Clear SOCKS5 accounts?")) {
+        if (confirm("确认清空 SOCKS5 账号列表？")) {
             $("[name='S5User']").val("");
         }
     }

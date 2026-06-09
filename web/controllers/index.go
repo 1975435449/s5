@@ -102,7 +102,7 @@ func parseSocks5Accounts(userString string) (map[string]string, error) {
 		}
 		auths := strings.SplitN(row, ":", 2)
 		if len(auths) != 2 || strings.TrimSpace(auths[0]) == "" || strings.TrimSpace(auths[1]) == "" {
-			return nil, fmt.Errorf("SOCKS5 account line %d must be username:password", i+1)
+			return nil, fmt.Errorf("SOCKS5 账号第 %d 行必须是 用户名:密码", i+1)
 		}
 		authMap[strings.TrimSpace(auths[0])] = strings.TrimSpace(auths[1])
 	}
@@ -111,16 +111,16 @@ func parseSocks5Accounts(userString string) (map[string]string, error) {
 
 func validateTunnelInput(port, flowLimit, rateLimit, maxConn int) error {
 	if port < 0 || port > 65535 {
-		return fmt.Errorf("port must be in range 0-65535, leave it empty or 0 for auto allocation")
+		return fmt.Errorf("端口必须在 0-65535 之间，留空或填 0 会自动分配")
 	}
 	if flowLimit < 0 {
-		return fmt.Errorf("flow limit cannot be negative")
+		return fmt.Errorf("流量限制不能为负数")
 	}
 	if rateLimit < 0 {
-		return fmt.Errorf("rate limit cannot be negative")
+		return fmt.Errorf("速度限制不能为负数")
 	}
 	if maxConn < 0 {
-		return fmt.Errorf("max connections cannot be negative")
+		return fmt.Errorf("最大连接数不能为负数")
 	}
 	return nil
 }
