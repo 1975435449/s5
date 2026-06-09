@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-REPO_OWNER="${REPO_OWNER:-wyx176}"
-REPO_NAME="${REPO_NAME:-nps-socks5}"
+REPO_OWNER="${REPO_OWNER:-1975435449}"
+REPO_NAME="${REPO_NAME:-s5}"
 INSTALL_DIR="${INSTALL_DIR:-/etc/nps}"
 BIN_DIR="${BIN_DIR:-/usr/local/bin}"
 WORK_DIR="${WORK_DIR:-/opt/nps-socks5}"

@@ -152,27 +152,43 @@ type release struct {
 	TagName string `json:"tag_name"`
 }
 
+const releaseRepo = "https://github.com/1975435449/s5"
+const releaseApi = "https://api.github.com/repos/1975435449/s5/releases/latest"
+
 func downloadLatest(bin string) string {
 	// get version
-	data, err := http.Get("https://github.com/wyx176/nps-socks5/releases/latest")
+	data, err := http.Get(releaseApi)
 	if err != nil {
 		log.Fatal(err.Error())
+	}
+	defer data.Body.Close()
+	if data.StatusCode < http.StatusOK || data.StatusCode >= http.StatusMultipleChoices {
+		log.Fatalf("get latest release failed: %s", data.Status)
 	}
 	b, err := ioutil.ReadAll(data.Body)
 	if err != nil {
 		log.Fatal(err)
 	}
 	rl := new(release)
-	json.Unmarshal(b, &rl)
+	if err := json.Unmarshal(b, &rl); err != nil {
+		log.Fatal(err)
+	}
 	version := rl.TagName
+	if version == "" {
+		log.Fatal("latest release tag is empty")
+	}
 	fmt.Println("the latest version is", version)
 	filename := runtime.GOOS + "_" + runtime.GOARCH + "_" + bin + ".tar.gz"
 	// download latest package
-	downloadUrl := fmt.Sprintf("https://github.com/wyx176/nps-socks5/releases/download/%s/%s", version, filename)
+	downloadUrl := fmt.Sprintf("%s/releases/download/%s/%s", releaseRepo, version, filename)
 	fmt.Println("download package from ", downloadUrl)
 	resp, err := http.Get(downloadUrl)
 	if err != nil {
 		log.Fatal(err.Error())
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		log.Fatalf("download package failed: %s", resp.Status)
 	}
 	destPath, err := unpackit.Unpack(resp.Body, "")
 	if err != nil {

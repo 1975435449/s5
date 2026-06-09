@@ -1,7 +1,12 @@
-.idea
-nps
-npc
+.idea/
+/nps
+/npc
+/nps.exe
+/npc.exe
 *.log
 proxy*.log
 test_503*.py
+项目维护文档.md
+build/
+dist/
 专业测试.py

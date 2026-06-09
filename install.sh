@@ -4,8 +4,8 @@ export LC_ALL=en_US.UTF-8
 # 文件下载存储路径
 SOCKS5_PATH="/opt/nps-socks5"
 # GitHub仓库信息
-REPO_OWNER="wyx176"
-REPO_NAME="nps-socks5"
+REPO_OWNER="1975435449"
+REPO_NAME="s5"
 
 # 获取操作系统类型和架构
 OS_TYPE=$(uname -s | tr '[:upper:]' '[:lower:]')

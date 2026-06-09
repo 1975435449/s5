@@ -10,8 +10,8 @@
 - 加密传输、数据压缩<br>
 - 服务端、客户端分离安装、可实现国内中专代理，降低被和谐概率<br>
 - 脚本只提供学习交流！<br>
-![image](https://raw.githubusercontent.com/wyx176/nps-socks5/refs/heads/master/server.png)
-![image](https://raw.githubusercontent.com/wyx176/nps-socks5/refs/heads/master/port.png)
+![image](https://raw.githubusercontent.com/1975435449/s5/refs/heads/master/server.png)
+![image](https://raw.githubusercontent.com/1975435449/s5/refs/heads/master/port.png)
 ## 系统支持 ##
 * contest、ubuntu、debian、windows <br>
 ## 功能 ##
@@ -20,13 +20,13 @@
 - 添加账户、删除用户、开启账户验证、关闭账户验证、一键修改端口
 
 ## 方法一：一键安装或更新到最新 ##
- <pre><code>curl --progress-bar -O https://raw.githubusercontent.com/wyx176/nps-socks5/master/install.sh && chmod 777 install.sh && ./install.sh</code></pre>
+ <pre><code>curl --progress-bar -O https://raw.githubusercontent.com/1975435449/s5/master/install-systemd.sh && sudo bash install-systemd.sh</code></pre>
 或者 
-<pre><code>wget --show-progress -q -N --no-check-certificate https://raw.githubusercontent.com/wyx176/nps-socks5/master/install.sh && chmod 777 install.sh && ./install.sh</code></pre>
+<pre><code>wget --show-progress -q -N --no-check-certificate https://raw.githubusercontent.com/1975435449/s5/master/install-systemd.sh && sudo bash install-systemd.sh</code></pre>
  ## 方法二:linux、windows均支持，需要安装go语言环境进行编译
  [参考NPS文档](https://ehang-io.github.io/nps/#/install)<br>
  1、安装源码
-  <pre><code>go get -u github.com/wyx176/nps-socks5</code></pre>
+  <pre><code>go get -u github.com/1975435449/s5</code></pre>
 2、编译服务端：进入到nps-socks5文件夹中执行命令
 <pre><code>go build cmd/nps/nps.go</code></pre>
 3、编译客户端：进入到nps-socks5文件夹中执行命令
@@ -60,3 +60,21 @@ allow_user_register=true<br>
 
 ## 写在最后 ##
 Telegram交流群:https://t.me/Socks55555
+# s5 stable socks5 server
+
+## Quick start
+
+Install the latest release on a Linux systemd server:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/1975435449/s5/master/install-systemd.sh -o install-systemd.sh
+sudo bash install-systemd.sh
+```
+
+Local development requires Go 1.22+:
+
+```bash
+go run ./cmd/nps/nps.go -conf_path=.
+```
+
+The default web panel is configured by `conf/nps.conf`.

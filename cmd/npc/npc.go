@@ -277,7 +277,7 @@ func printSlogan() {
 	fmt.Printf("\033[32;0m###########################################################\n")
 	fmt.Printf("\033[32;0m#                   \033[31mnps-socks5客户端\033[0m                     #\n")
 	fmt.Printf("\033[32;0m#                            			          #\n")
-	fmt.Printf("\033[32;0m#\033[32m 地址：\033[31;0mhttps://github.com/wyx176/nps-socks5\033[0m                     #\n")
+	fmt.Printf("\033[32;0m#\033[32m 地址：\033[31;0mhttps://github.com/1975435449/s5\033[0m                     #\n")
 	fmt.Printf("\033[32;0m#\033[32m 提示：\033[32;0m1、涉及到系统服务的需要以管理员身份运行\033[0m\033[32;0m	          #\n")
 	fmt.Printf("\033[32;0m#\033[32m       \033[32;0m2、直接启动或[注册系统服务]需要使用[快捷启动命令]\033[0m\033[32;0m #\n")
 	fmt.Printf("\033[32;0m#\033[32m       \033[32;0m3、其他命令如卸载/启动/停止只需要输入[vkey]\033[0m\033[32;0m	  #\n")
@@ -421,7 +421,7 @@ func systemPro(flag string, serAddr string, vkey string) {
 	svcConfig := &service.Config{
 		Name:        "nps-client-" + vkey,
 		DisplayName: "nps-client-" + vkey,
-		Description: "nps-socks5客户端，地址：https://github.com/wyx176/nps-socks5",
+		Description: "nps-socks5客户端，地址：https://github.com/1975435449/s5",
 		Option:      options,
 	}
 	s, _ := service.New(prg, svcConfig)
